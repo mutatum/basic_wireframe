@@ -4,7 +4,35 @@ const zopengl = @import("zopengl");
 
 const program_name = "basic_wireframe";
 
+const DimensionError = error{
+    Negative,
+    TooLarge,
+};
+
+fn validateDimensions(n: i32, m: i32) !void {
+    if (n <= 0 or m <= 0) {
+        return DimensionError.Dimension;
+    }
+
+    if (n > 1000 or m > 1000) {
+        return DimensionError.TooLarge;
+    }
+}
+
 pub fn main() !void {
+    const args = std.process.args;
+    const stdout = std.io.getStdOut().writer();
+
+    if (args.len < 3) {
+        stdout.print("Usage: {} <n> <m>\n", .{args[0]});
+        return;
+    }
+
+    const n = std.fmt.parseInt(i32, args[1], 10);
+    const m = std.fmt.parseInt(i32, args[2], 10);
+
+    validateDimensions(n, m);
+
     glfw.init() catch |glfw_init_error| {
         std.debug.print("GLFW initialization error: {}\n", .{glfw_init_error});
         return;
@@ -34,15 +62,8 @@ pub fn main() !void {
     while (!window.shouldClose()) {
         glfw.pollEvents();
 
-        gl.clearBufferfv(gl.COLOR, 0, &[_]f32{ 0.2, 0.6, 0.4, 1.0 });
+        gl.clearBufferfv(gl.COLOR, 0, &[_]f32{ 0, 0, 0, 1 });
 
         window.swapBuffers();
     }
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
