@@ -2,36 +2,50 @@ const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 
-const program_name = "basic_wireframe";
-
-const DimensionError = error{
+const InputError = error{
     Negative,
     TooLarge,
+    MissingParameter,
 };
 
 fn validateDimensions(n: i32, m: i32) !void {
     if (n <= 0 or m <= 0) {
-        return DimensionError.Dimension;
+        return InputError.Negative;
     }
 
     if (n > 1000 or m > 1000) {
-        return DimensionError.TooLarge;
+        return InputError.TooLarge;
     }
+    return;
 }
 
 pub fn main() !void {
-    const args = std.process.args;
     const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
+    var args = std.process.args();
 
-    if (args.len < 3) {
-        stdout.print("Usage: {} <n> <m>\n", .{args[0]});
-        return;
-    }
+    const call_name = args.next().?;
+    const usage_str =
+        \\ Usage: {s} <n> <m>
+        \\ Where n and m are integers between 0 and 1000
+        \\
+    ;
 
-    const n = std.fmt.parseInt(i32, args[1], 10);
-    const m = std.fmt.parseInt(i32, args[2], 10);
+    const n_str = args.next() orelse {
+        try stderr.print(usage_str, .{call_name});
+        return InputError.MissingParameter;
+    };
+    const n = try std.fmt.parseInt(i32, n_str, 10);
 
-    validateDimensions(n, m);
+    const m_str = args.next() orelse {
+        try stderr.print(usage_str, .{call_name});
+        return InputError.MissingParameter;
+    };
+    const m = try std.fmt.parseInt(i32, m_str, 10);
+
+    try validateDimensions(n, m);
+
+    try stdout.print("call_name: {s}, n: {}, m:{}", .{ call_name, n, m });
 
     glfw.init() catch |glfw_init_error| {
         std.debug.print("GLFW initialization error: {}\n", .{glfw_init_error});
@@ -48,10 +62,25 @@ pub fn main() !void {
     glfw.windowHintTyped(.client_api, .opengl_api);
     glfw.windowHintTyped(.doublebuffer, true);
 
-    const window = try glfw.Window.create(600, 600, program_name, null);
+    const width = 1000;
+    const height = 800;
+    const window = try glfw.Window.create(width, height, call_name, null);
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
+
+    const monitor = glfw.Monitor.getPrimary();
+    const video_mode = try glfw.Monitor.getVideoMode(monitor.?);
+    const monitor_width = video_mode.width;
+    const monitor_height = video_mode.height;
+
+    // Calculate the center position
+    const window_x = @divTrunc(monitor_width - width, 2);
+    const window_y = @divTrunc(monitor_height - height, 2);
+    std.debug.print("{} {}", .{ window_x, window_y });
+
+    // Set the window position
+    window.setPos(window_x, window_y);
 
     try zopengl.loadCoreProfile(glfw.getProcAddress, gl_major, gl_minor);
 
